@@ -6,6 +6,3 @@ testdata_dir = "testdata"
 include_ext = ["go", "tpl", "html"]
 exclude_dir = ["dist", "tmp", "vendor", ".git"]
 exclude_patterns = ["*_test.go"]
-[log]
-  time = "2006-01-02 15:04:05"
-  color = true

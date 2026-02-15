@@ -8,11 +8,12 @@ services:
     volumes:
       - .:/app
     environment:
+      - BASE_DIR=/app
       - DB_HOST=db
       - DB_PORT=5432
       - DB_USER=postgres
       - DB_PASSWORD=your_password
-      - DB_NAME=mini_ci_db
+      - DB_NAME=ci_db
       - DB_SSL_MODE=disable
     depends_on:
       db:
@@ -27,11 +28,12 @@ services:
     volumes:
       - .:/app
     environment:
+      - BASE_DIR=/app
       - DB_HOST=db
       - DB_PORT=5432
       - DB_USER=postgres
       - DB_PASSWORD=your_password
-      - DB_NAME=mini_ci_db
+      - DB_NAME=ci_db
       - DB_SSL_MODE=disable
     depends_on:
        db:
@@ -44,7 +46,7 @@ services:
     environment:
         - POSTGRES_USER=postgres
         - POSTGRES_PASSWORD=your_password
-        - POSTGRES_DB=mini_ci_db
+        - POSTGRES_DB=ci_db
     volumes:
         - postgres_data:/var/lib/postgresql/data
     healthcheck:
