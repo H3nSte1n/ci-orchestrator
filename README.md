@@ -1,4 +1,4 @@
-# mini-ci — Mini Build Orchestrator (WIP)
+# Mini CI - Build Orchestrator (WIP)
 
 A minimal build orchestration system in Go: submit a build, schedule it, execute it on workers in isolated environments, stream logs, and persist results.
 
