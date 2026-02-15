@@ -128,3 +128,33 @@ func TestBuildService_UpdateStatus_Error(t *testing.T) {
 	assert.Error(t, err)
 	assert.Equal(t, expectedErr, err)
 }
+
+func TestBuildService_GetBuild_Success(t *testing.T) {
+	mockRepo := new(MockBuildRepository)
+	ctx := context.Background()
+	buildId := "test-build-id"
+	expectedBuild := buildTestData()
+
+	mockRepo.On("FindByID", mock.Anything, mock.Anything).Return(expectedBuild, nil)
+
+	service := NewBuildService(mockRepo)
+	build, err := service.GetBuild(ctx, buildId)
+
+	assert.NoError(t, err)
+	assert.Equal(t, expectedBuild, build)
+}
+
+func TestBuildService_GetBuild_Error(t *testing.T) {
+	mockRepo := new(MockBuildRepository)
+	ctx := context.Background()
+	buildId := "test-build-id"
+	expectedErr := errors.New("build not found")
+
+	mockRepo.On("FindByID", mock.Anything, mock.Anything).Return(nil, expectedErr)
+
+	service := NewBuildService(mockRepo)
+	_, err := service.GetBuild(ctx, buildId)
+
+	assert.Error(t, err)
+	assert.Equal(t, expectedErr, err)
+}

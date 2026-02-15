@@ -50,3 +50,12 @@ func (s *buildService) UpdateStatus(ctx context.Context, buildId string, status 
 
 	return nil
 }
+
+func (s *buildService) GetBuild(ctx context.Context, buildId string) (*domain.Build, error) {
+	build, err := s.buildRepo.FindByID(ctx, buildId)
+	if err != nil {
+		return nil, err
+	}
+
+	return build, nil
+}

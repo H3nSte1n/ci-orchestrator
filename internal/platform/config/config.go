@@ -8,13 +8,18 @@ import (
 )
 
 type Config struct {
-	App AppConfig `mapstructure:"app"`
-	DB  DBConfig  `mapstructure:"db"`
+	App              AppConfig        `mapstructure:"app"`
+	ApiServiceConfig ApiServiceConfig `mapstructure:"api_service"`
+	DB               DBConfig         `mapstructure:"db"`
 }
 
 type AppConfig struct {
 	Name string `mapstructure:"name"`
 	Env  string `mapstructure:"env"`
+}
+
+type ApiServiceConfig struct {
+	Port string `mapstructure:"port"`
 }
 
 type DBConfig struct {
