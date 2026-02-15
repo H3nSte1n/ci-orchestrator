@@ -9,7 +9,7 @@ This repository explores practical problems in build infrastructure. Job lifecyc
 ---
 
 ## Communication flow
-![mini-ci flow](docs/flow.svg)
+![mini-ci flow](docs/flow.png)
 
 ---
 
