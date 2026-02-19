@@ -203,7 +203,7 @@ func TestBuildRepository_ClaimNext_Success(t *testing.T) {
 
 	repo := &buildRepository{db: mockDB}
 	ctx := context.Background()
-	build, err := repo.ClaimNext(ctx, "ci-id")
+	build, err := repo.ClaimNext(ctx, "worker-id")
 
 	assert.NoError(t, err)
 	assert.Equal(t, "ci-id", build.ID)
@@ -223,7 +223,7 @@ func TestBuildRepository_ClaimNext_Error(t *testing.T) {
 
 	repo := &buildRepository{db: mockDB}
 	ctx := context.Background()
-	build, err := repo.ClaimNext(ctx, "ci-id")
+	build, err := repo.ClaimNext(ctx, "worker-id")
 
 	assert.Error(t, err)
 	assert.Nil(t, build)

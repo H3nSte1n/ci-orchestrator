@@ -150,6 +150,7 @@ func TestBuildService_GetBuild_Success(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t, expectedBuild, build)
+	mockRepo.AssertExpectations(t)
 }
 
 func TestBuildService_GetBuild_Error(t *testing.T) {
@@ -162,6 +163,37 @@ func TestBuildService_GetBuild_Error(t *testing.T) {
 
 	service := NewBuildService(mockRepo)
 	_, err := service.GetBuild(ctx, buildId)
+
+	assert.Error(t, err)
+	assert.Equal(t, expectedErr, err)
+}
+
+func TestBuildService_ClaimNext_Success(t *testing.T) {
+	mockRepo := new(MockBuildRepository)
+	ctx := context.Background()
+	workerId := "worker-1"
+	expectedBuild := buildTestData()
+
+	mockRepo.On("ClaimNext", mock.Anything, mock.Anything).Return(expectedBuild, nil)
+
+	service := NewBuildService(mockRepo)
+	build, err := service.ClaimNext(ctx, workerId)
+
+	assert.NoError(t, err)
+	assert.Equal(t, expectedBuild, build)
+	mockRepo.AssertExpectations(t)
+}
+
+func TestBuildService_ClaimNext_Error(t *testing.T) {
+	mockRepo := new(MockBuildRepository)
+	ctx := context.Background()
+	workerId := "worker-1"
+	expectedErr := errors.New("database error")
+
+	mockRepo.On("ClaimNext", mock.Anything, mock.Anything).Return(nil, expectedErr)
+
+	service := NewBuildService(mockRepo)
+	_, err := service.ClaimNext(ctx, workerId)
 
 	assert.Error(t, err)
 	assert.Equal(t, expectedErr, err)

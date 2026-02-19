@@ -59,3 +59,13 @@ func (s *buildService) GetBuild(ctx context.Context, buildId string) (*domain.Bu
 
 	return build, nil
 }
+
+func (s *buildService) ClaimNext(ctx context.Context, workerId string) (*domain.Build, error) {
+	build, err := s.buildRepo.ClaimNext(ctx, workerId)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return build, nil
+}

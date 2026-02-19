@@ -10,4 +10,5 @@ type BuildService interface {
 	CancelBuild(ctx context.Context, buildId string) error
 	UpdateStatus(ctx context.Context, buildId string, status domain.BuildStatus) error
 	GetBuild(ctx context.Context, buildId string) (*domain.Build, error)
+	ClaimNext(ctx context.Context, workerId string) (*domain.Build, error)
 }
