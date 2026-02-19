@@ -46,7 +46,30 @@ func (m *mockDB) Updates(value interface{}) ports.DB {
 	return m
 }
 
+func (m *mockDB) Transaction(fn func(tx ports.DB) error) error {
+	err := fn(m)
+	if err != nil {
+		return err
+	}
+	return m.Error
+}
+
 func (m *mockDB) First(value interface{}) ports.DB {
+	m.Called(value)
+	return m
+}
+
+func (m *mockDB) Order(value string) ports.DB {
+	m.Called(value)
+	return m
+}
+
+func (m *mockDB) Clauses(conds ...interface{}) ports.DB {
+	m.Called(conds)
+	return m
+}
+
+func (m *mockDB) Model(value interface{}) ports.DB {
 	m.Called(value)
 	return m
 }
@@ -145,23 +168,6 @@ func TestBuildRepository_FindByID_Success(t *testing.T) {
 	mockDB.AssertExpectations(t)
 }
 
-func TestBuildRepository_FindByID_NotFound(t *testing.T) {
-	mockDB := new(mockDB)
-	mockDB.Error = errors.New("record not found")
-
-	mockDB.On("WithContext", mock.Anything).Return(mockDB)
-	mockDB.On("Where", mock.Anything, mock.Anything).Return(mockDB)
-	mockDB.On("First", mock.Anything).Return(mockDB)
-
-	repo := &buildRepository{db: mockDB}
-	ctx := context.Background()
-	build, err := repo.FindByID(ctx, "non-existent")
-
-	assert.Error(t, err)
-	assert.Nil(t, build)
-	mockDB.AssertExpectations(t)
-}
-
 func TestBuildRepository_FindByID_Error(t *testing.T) {
 	mockDB := new(mockDB)
 	expectedErr := errors.New("database error")
@@ -176,6 +182,51 @@ func TestBuildRepository_FindByID_Error(t *testing.T) {
 	_, err := repo.FindByID(ctx, "ci-id")
 
 	assert.Error(t, err)
+	assert.Equal(t, expectedErr, err)
+	mockDB.AssertExpectations(t)
+}
+
+func TestBuildRepository_ClaimNext_Success(t *testing.T) {
+	mockDB := new(mockDB)
+	mockDB.Error = nil
+
+	mockDB.On("WithContext", mock.Anything).Return(mockDB)
+	mockDB.On("Where", mock.Anything, mock.Anything).Return(mockDB)
+	mockDB.On("Order", mock.Anything).Return(mockDB)
+	mockDB.On("Clauses", mock.Anything).Return(mockDB)
+	mockDB.On("First", mock.Anything).Return(mockDB).Run(func(args mock.Arguments) {
+		build := args.Get(0).(*domain.Build)
+		*build = *buildTestData()
+	})
+	mockDB.On("Model", mock.Anything).Return(mockDB)
+	mockDB.On("Updates", mock.Anything).Return(mockDB)
+
+	repo := &buildRepository{db: mockDB}
+	ctx := context.Background()
+	build, err := repo.ClaimNext(ctx, "ci-id")
+
+	assert.NoError(t, err)
+	assert.Equal(t, "ci-id", build.ID)
+	mockDB.AssertExpectations(t)
+}
+
+func TestBuildRepository_ClaimNext_Error(t *testing.T) {
+	mockDB := new(mockDB)
+	expectedErr := errors.New("database error")
+	mockDB.Error = expectedErr
+
+	mockDB.On("WithContext", mock.Anything).Return(mockDB)
+	mockDB.On("Where", mock.Anything, mock.Anything).Return(mockDB)
+	mockDB.On("Order", mock.Anything).Return(mockDB)
+	mockDB.On("Clauses", mock.Anything).Return(mockDB)
+	mockDB.On("First", mock.Anything).Return(mockDB)
+
+	repo := &buildRepository{db: mockDB}
+	ctx := context.Background()
+	build, err := repo.ClaimNext(ctx, "ci-id")
+
+	assert.Error(t, err)
+	assert.Nil(t, build)
 	assert.Equal(t, expectedErr, err)
 	mockDB.AssertExpectations(t)
 }

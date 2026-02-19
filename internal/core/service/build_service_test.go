@@ -42,6 +42,14 @@ func (m *MockBuildRepository) FindByID(ctx context.Context, buildId string) (*do
 	return args.Get(0).(*domain.Build), args.Error(1)
 }
 
+func (m *MockBuildRepository) ClaimNext(ctx context.Context, workerId string) (*domain.Build, error) {
+	args := m.Called(ctx, workerId)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.Build), args.Error(1)
+}
+
 func TestBuildService_CreateBuild_Success(t *testing.T) {
 	mockRepo := new(MockBuildRepository)
 	ctx := context.Background()
