@@ -57,6 +57,11 @@ func (m *mockBuildService) GetBuild(ctx context.Context, buildId string) (*domai
 	return args.Get(0).(*domain.Build), args.Error(1)
 }
 
+func (m *mockBuildService) CompleteBuild(ctx context.Context, buildId string, exitCode int, finishedAt *time.Time, error error) error {
+	args := m.Called(ctx, buildId, exitCode, finishedAt, error)
+	return args.Error(0)
+}
+
 func (m *mockBuildService) GetError() error {
 	return m.Error
 }
@@ -64,6 +69,7 @@ func (m *mockBuildService) GetError() error {
 func TestWorker_ClaimAndProcess_Success(t *testing.T) {
 	mockBuildService := new(mockBuildService)
 	mockBuildService.On("ClaimNext", mock.Anything, "worker-1").Return(buildTestData(), nil)
+	mockBuildService.On("CompleteBuild", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	worker := NewWorker("worker-1", mockBuildService, 100*time.Millisecond)
 	err := worker.claimAndProcess(context.Background())
@@ -95,9 +101,24 @@ func TestWorker_ClaimAndProcess_NoBuilds(t *testing.T) {
 	mockBuildService.AssertCalled(t, "ClaimNext", mock.Anything, "worker-1")
 }
 
+func TestWorker_ClaimAndProcess_CompleteBuildError(t *testing.T) {
+	mockBuildService := new(mockBuildService)
+	expectedErr := errors.New("db error")
+	mockBuildService.On("ClaimNext", mock.Anything, "worker-1").Return(buildTestData(), nil)
+	mockBuildService.On("CompleteBuild", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(expectedErr)
+
+	worker := NewWorker("worker-1", mockBuildService, 100*time.Millisecond)
+	err := worker.claimAndProcess(context.Background())
+
+	assert.ErrorIs(t, err, expectedErr)
+	mockBuildService.AssertCalled(t, "ClaimNext", mock.Anything, "worker-1")
+	mockBuildService.AssertCalled(t, "CompleteBuild", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+}
+
 func TestWorker_Run_ExitsOnContextCancel(t *testing.T) {
 	mockBuildService := new(mockBuildService)
 	mockBuildService.On("ClaimNext", mock.Anything, mock.Anything).Return(buildTestData(), nil)
+	mockBuildService.On("CompleteBuild", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	worker := NewWorker("worker-1", mockBuildService, 100*time.Millisecond)
 	ctx, cancel := context.WithTimeout(context.Background(), 250*time.Millisecond)

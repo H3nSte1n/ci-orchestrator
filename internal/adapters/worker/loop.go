@@ -52,5 +52,8 @@ func (w *worker) claimAndProcess(ctx context.Context) error {
 	}
 
 	// TODO: Execute build command and update status accordingly
+	if err := w.buildService.CompleteBuild(ctx, build.ID, 0, nil, nil); err != nil {
+		return err
+	}
 	return nil
 }
