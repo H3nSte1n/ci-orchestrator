@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/H3nSte1n/ci-orchestrator/internal/core/domain"
 	"github.com/stretchr/testify/assert"
@@ -36,6 +37,14 @@ func (m *MockBuildRepository) Update(ctx context.Context, build *domain.Build) e
 
 func (m *MockBuildRepository) FindByID(ctx context.Context, buildId string) (*domain.Build, error) {
 	args := m.Called(ctx, buildId)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.Build), args.Error(1)
+}
+
+func (m *MockBuildRepository) ClaimNext(ctx context.Context, workerId string) (*domain.Build, error) {
+	args := m.Called(ctx, workerId)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
@@ -142,6 +151,7 @@ func TestBuildService_GetBuild_Success(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t, expectedBuild, build)
+	mockRepo.AssertExpectations(t)
 }
 
 func TestBuildService_GetBuild_Error(t *testing.T) {
@@ -154,6 +164,71 @@ func TestBuildService_GetBuild_Error(t *testing.T) {
 
 	service := NewBuildService(mockRepo)
 	_, err := service.GetBuild(ctx, buildId)
+
+	assert.Error(t, err)
+	assert.Equal(t, expectedErr, err)
+}
+
+func TestBuildService_ClaimNext_Success(t *testing.T) {
+	mockRepo := new(MockBuildRepository)
+	ctx := context.Background()
+	workerId := "worker-1"
+	expectedBuild := buildTestData()
+
+	mockRepo.On("ClaimNext", mock.Anything, mock.Anything).Return(expectedBuild, nil)
+
+	service := NewBuildService(mockRepo)
+	build, err := service.ClaimNext(ctx, workerId)
+
+	assert.NoError(t, err)
+	assert.Equal(t, expectedBuild, build)
+	mockRepo.AssertExpectations(t)
+}
+
+func TestBuildService_ClaimNext_Error(t *testing.T) {
+	mockRepo := new(MockBuildRepository)
+	ctx := context.Background()
+	workerId := "worker-1"
+	expectedErr := errors.New("database error")
+
+	mockRepo.On("ClaimNext", mock.Anything, mock.Anything).Return(nil, expectedErr)
+
+	service := NewBuildService(mockRepo)
+	_, err := service.ClaimNext(ctx, workerId)
+
+	assert.Error(t, err)
+	assert.Equal(t, expectedErr, err)
+}
+
+func TestBuildService_CompleteBuild(t *testing.T) {
+	mockRepo := new(MockBuildRepository)
+	ctx := context.Background()
+	buildId := "test-build-id"
+	exitCode := 0
+	var finishedAt *time.Time
+	var expectedErr error
+
+	mockRepo.On("Update", mock.Anything, mock.Anything).Return(nil)
+
+	service := NewBuildService(mockRepo)
+	err := service.CompleteBuild(ctx, buildId, exitCode, finishedAt, expectedErr)
+
+	assert.NoError(t, err)
+	mockRepo.AssertExpectations(t)
+}
+
+func TestBuildService_CompleteBuild_Error(t *testing.T) {
+	mockRepo := new(MockBuildRepository)
+	ctx := context.Background()
+	buildId := "test-build-id"
+	exitCode := 1
+	var finishedAt *time.Time
+	expectedErr := errors.New("build failed")
+
+	mockRepo.On("Update", mock.Anything, mock.Anything).Return(expectedErr)
+
+	service := NewBuildService(mockRepo)
+	err := service.CompleteBuild(ctx, buildId, exitCode, finishedAt, expectedErr)
 
 	assert.Error(t, err)
 	assert.Equal(t, expectedErr, err)

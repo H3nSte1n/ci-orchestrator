@@ -1,6 +1,8 @@
 package ports
 
-import "context"
+import (
+	"context"
+)
 
 type DB interface {
 	WithContext(ctx context.Context) DB
@@ -9,4 +11,8 @@ type DB interface {
 	Updates(value interface{}) DB
 	First(value interface{}) DB
 	GetError() error
+	Transaction(f func(tx DB) error) error
+	Order(value string) DB
+	Clauses(conds ...interface{}) DB
+	Model(value interface{}) DB
 }
