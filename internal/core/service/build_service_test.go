@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/H3nSte1n/ci-orchestrator/internal/core/domain"
 	"github.com/stretchr/testify/assert"
@@ -194,6 +195,40 @@ func TestBuildService_ClaimNext_Error(t *testing.T) {
 
 	service := NewBuildService(mockRepo)
 	_, err := service.ClaimNext(ctx, workerId)
+
+	assert.Error(t, err)
+	assert.Equal(t, expectedErr, err)
+}
+
+func TestBuildService_CompleteBuild(t *testing.T) {
+	mockRepo := new(MockBuildRepository)
+	ctx := context.Background()
+	buildId := "test-build-id"
+	exitCode := 0
+	var finishedAt *time.Time
+	var expectedErr error
+
+	mockRepo.On("Update", mock.Anything, mock.Anything).Return(nil)
+
+	service := NewBuildService(mockRepo)
+	err := service.CompleteBuild(ctx, buildId, exitCode, finishedAt, expectedErr)
+
+	assert.NoError(t, err)
+	mockRepo.AssertExpectations(t)
+}
+
+func TestBuildService_CompleteBuild_Error(t *testing.T) {
+	mockRepo := new(MockBuildRepository)
+	ctx := context.Background()
+	buildId := "test-build-id"
+	exitCode := 1
+	var finishedAt *time.Time
+	expectedErr := errors.New("build failed")
+
+	mockRepo.On("Update", mock.Anything, mock.Anything).Return(expectedErr)
+
+	service := NewBuildService(mockRepo)
+	err := service.CompleteBuild(ctx, buildId, exitCode, finishedAt, expectedErr)
 
 	assert.Error(t, err)
 	assert.Equal(t, expectedErr, err)

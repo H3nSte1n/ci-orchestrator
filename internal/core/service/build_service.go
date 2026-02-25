@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/H3nSte1n/ci-orchestrator/internal/core/domain"
 	"github.com/H3nSte1n/ci-orchestrator/internal/core/ports"
+	"time"
 )
 
 type buildService struct {
@@ -68,4 +69,21 @@ func (s *buildService) ClaimNext(ctx context.Context, workerId string) (*domain.
 	}
 
 	return build, nil
+}
+
+func (s *buildService) CompleteBuild(ctx context.Context, buildId string, exitCode int, finishedAt *time.Time, error error) error {
+	build := &domain.Build{
+		ID:         buildId,
+		Status:     domain.BuildStatusSuccess,
+		ExitCode:   exitCode,
+		FinishedAt: finishedAt,
+	}
+
+	if error != nil {
+		build.Error = error.Error()
+	}
+
+	err := s.buildRepo.Update(ctx, build)
+
+	return err
 }
