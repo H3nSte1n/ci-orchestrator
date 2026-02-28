@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"github.com/H3nSte1n/ci-orchestrator/internal/core/domain"
+	"github.com/H3nSte1n/ci-orchestrator/internal/core/ports"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"gorm.io/gorm"
 	"testing"
 )
 
@@ -16,6 +18,15 @@ func buildLogTestData() domain.BuildLog {
 		Stream:  domain.LogStderr,
 		Content: "The first line",
 	}
+}
+
+func TestNewBuildLogRepository(t *testing.T) {
+	mockDB := &gorm.DB{}
+
+	repo := NewBuildLogRepository(mockDB)
+
+	assert.NotNil(t, repo)
+	assert.Implements(t, (*ports.BuildLogRepository)(nil), repo)
 }
 
 func TestBuildLogRepository_Save_Success(t *testing.T) {

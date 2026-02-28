@@ -3,6 +3,8 @@ package repositories
 import (
 	"context"
 	"errors"
+	"github.com/H3nSte1n/ci-orchestrator/internal/core/ports"
+	"gorm.io/gorm"
 	"testing"
 
 	"github.com/H3nSte1n/ci-orchestrator/internal/core/domain"
@@ -18,6 +20,15 @@ func buildTestData() *domain.Build {
 		Command: "npm test",
 		Status:  domain.BuildStatusPending,
 	}
+}
+
+func TestNewBuildRepository(t *testing.T) {
+	mockDB := &gorm.DB{}
+
+	repo := NewBuildRepository(mockDB)
+
+	assert.NotNil(t, repo)
+	assert.Implements(t, (*ports.BuildRepository)(nil), repo)
 }
 
 func TestBuildRepository_Save_Success(t *testing.T) {
