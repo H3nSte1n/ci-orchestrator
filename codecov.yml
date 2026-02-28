@@ -1,0 +1,10 @@
+coverage:
+  precision: 2
+  round: down
+
+ignore:
+  - "cmd/**"
+  - "internal/core/ports/**"
+  - "internal/testhelpers/**"
+  - "migrations/**"
+  - "**/*_test.go"
