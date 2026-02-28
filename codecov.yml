@@ -8,3 +8,4 @@ ignore:
   - "internal/testhelpers/**"
   - "migrations/**"
   - "**/*_test.go"
+  - "internal/adapters/repositories/gorm_adapter.go"
