@@ -21,6 +21,35 @@ func buildTestData() *domain.Build {
 	}
 }
 
+type mockBuildLogService struct {
+	mock.Mock
+}
+
+func (m *mockBuildLogService) AppendLog(ctx context.Context, buildId string, ev domain.LogEvent) error {
+	args := m.Called(ctx, buildId, ev)
+	return args.Error(0)
+}
+
+type stubRunner struct {
+	exitCode int
+	runErr   error
+	events   []domain.LogEvent
+}
+
+func (r *stubRunner) Start(_ context.Context, _, _ string, _ []string) (<-chan domain.LogEvent, func() (int, error), error) {
+	ch := make(chan domain.LogEvent, len(r.events))
+	for _, e := range r.events {
+		ch <- e
+	}
+	close(ch)
+
+	waitFn := func() (int, error) {
+		return r.exitCode, r.runErr
+	}
+
+	return ch, waitFn, nil
+}
+
 type mockBuildService struct {
 	mock.Mock
 	Error error
@@ -71,11 +100,20 @@ func TestWorker_ClaimAndProcess_Success(t *testing.T) {
 	mockBuildService.On("ClaimNext", mock.Anything, "worker-1").Return(buildTestData(), nil)
 	mockBuildService.On("CompleteBuild", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-	worker := NewWorker("worker-1", mockBuildService, 100*time.Millisecond)
+	mockBuildLogService := new(mockBuildLogService)
+	mockBuildLogService.On("AppendLog", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	runner := &stubRunner{exitCode: 0, runErr: nil, events: []domain.LogEvent{{Stream: domain.LogStdout, Line: "hello", Time: time.Now()}}}
+
+	worker := NewWorker("worker-1", mockBuildService, mockBuildLogService, 100*time.Millisecond, runner)
 	err := worker.claimAndProcess(context.Background())
 
 	assert.NoError(t, err)
 	mockBuildService.AssertCalled(t, "ClaimNext", mock.Anything, "worker-1")
+	mockBuildLogService.AssertCalled(t, "AppendLog", mock.Anything, "ci-id", mock.MatchedBy(func(e domain.LogEvent) bool {
+		return e.Stream == domain.LogStdout && e.Line == "hello"
+	}))
+	mockBuildLogService.AssertNumberOfCalls(t, "AppendLog", 1)
 }
 
 func TestWorker_ClaimAndProcess_Error(t *testing.T) {
@@ -83,7 +121,10 @@ func TestWorker_ClaimAndProcess_Error(t *testing.T) {
 	expectedErr := errors.New("db error")
 	mockBuildService.On("ClaimNext", mock.Anything, "worker-1").Return(nil, expectedErr)
 
-	worker := NewWorker("worker-1", mockBuildService, 100*time.Millisecond)
+	mockBuildLogService := new(mockBuildLogService)
+	runner := &stubRunner{exitCode: 0, runErr: nil}
+
+	worker := NewWorker("worker-1", mockBuildService, mockBuildLogService, 100*time.Millisecond, runner)
 	err := worker.claimAndProcess(context.Background())
 
 	assert.ErrorIs(t, err, expectedErr)
@@ -94,7 +135,10 @@ func TestWorker_ClaimAndProcess_NoBuilds(t *testing.T) {
 	mockBuildService := new(mockBuildService)
 	mockBuildService.On("ClaimNext", mock.Anything, "worker-1").Return(nil, nil)
 
-	worker := NewWorker("worker-1", mockBuildService, 100*time.Millisecond)
+	mockBuildLogService := new(mockBuildLogService)
+	runner := &stubRunner{exitCode: 0, runErr: nil}
+
+	worker := NewWorker("worker-1", mockBuildService, mockBuildLogService, 100*time.Millisecond, runner)
 	err := worker.claimAndProcess(context.Background())
 
 	assert.NoError(t, err)
@@ -107,7 +151,10 @@ func TestWorker_ClaimAndProcess_CompleteBuildError(t *testing.T) {
 	mockBuildService.On("ClaimNext", mock.Anything, "worker-1").Return(buildTestData(), nil)
 	mockBuildService.On("CompleteBuild", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(expectedErr)
 
-	worker := NewWorker("worker-1", mockBuildService, 100*time.Millisecond)
+	mockBuildLogService := new(mockBuildLogService)
+	runner := &stubRunner{exitCode: 0, runErr: nil}
+
+	worker := NewWorker("worker-1", mockBuildService, mockBuildLogService, 100*time.Millisecond, runner)
 	err := worker.claimAndProcess(context.Background())
 
 	assert.ErrorIs(t, err, expectedErr)
@@ -117,10 +164,11 @@ func TestWorker_ClaimAndProcess_CompleteBuildError(t *testing.T) {
 
 func TestWorker_Run_ExitsOnContextCancel(t *testing.T) {
 	mockBuildService := new(mockBuildService)
-	mockBuildService.On("ClaimNext", mock.Anything, mock.Anything).Return(buildTestData(), nil)
-	mockBuildService.On("CompleteBuild", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	mockBuildService.On("ClaimNext", mock.Anything, mock.Anything).Return(nil, nil)
+	mockBuildLogService := new(mockBuildLogService)
+	runner := &stubRunner{exitCode: 0, runErr: nil}
 
-	worker := NewWorker("worker-1", mockBuildService, 100*time.Millisecond)
+	worker := NewWorker("worker-1", mockBuildService, mockBuildLogService, 100*time.Millisecond, runner)
 	ctx, cancel := context.WithTimeout(context.Background(), 250*time.Millisecond)
 	defer cancel()
 
