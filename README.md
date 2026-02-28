@@ -1,5 +1,8 @@
 # Mini CI - Build Orchestrator (WIP)
 
+[![CI](https://github.com/H3nSte1n/ci-orchestrator/actions/workflows/ci.yml/badge.svg)](https://github.com/H3nSte1n/ci-orchestrator/actions/workflows/ci.yml)
+[![Coverage Status](https://codecov.io/gh/H3nSte1n/ci-orchestrator/branch/main/graph/badge.svg)](https://codecov.io/gh/H3nSte1n/ci-orchestrator)
+
 A minimal build orchestration system in Go: submit a build, queue it, execute it on workers, persist logs, and track results.
 
 This repository explores practical problems in build infrastructure. Job lifecycle, concurrency control, isolation boundaries, caching opportunities, and operational visibility, through a small, end-to-end implementation.
