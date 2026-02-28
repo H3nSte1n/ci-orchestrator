@@ -18,8 +18,7 @@ func NewBuildService(buildRepository ports.BuildRepository) ports.BuildService {
 }
 
 func (s *buildService) CreateBuild(ctx context.Context, build *domain.Build) error {
-	err := s.buildRepo.Save(ctx, build)
-	if err != nil {
+	if err := s.buildRepo.Save(ctx, build); err != nil {
 		return err
 	}
 

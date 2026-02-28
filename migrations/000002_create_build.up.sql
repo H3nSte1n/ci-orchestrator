@@ -11,6 +11,7 @@ CREATE TABLE builds
     locked_at TIMESTAMPTZ,
     finished_at TIMESTAMPTZ,
     cancel_requested_at TIMESTAMPTZ,
+
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
