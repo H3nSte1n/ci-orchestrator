@@ -29,6 +29,7 @@ type DBConfig struct {
 	Password string `mapstructure:"password"`
 	Name     string `mapstructure:"name"`
 	SSLMode  string `mapstructure:"ssl_mode"`
+	Quiet    bool   `mapstructure:"quiet"`
 }
 
 func LoadConfig(env string) (config *Config, err error) {

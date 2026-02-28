@@ -27,6 +27,7 @@ func TestLoadConfig(t *testing.T) {
 		Password: "your_password",
 		Name:     "ci_db_test",
 		SSLMode:  "disable",
+		Quiet:    true,
 	}) {
 		t.Errorf("DB config mismatch. Got: %+v", cfg.DB)
 	}
