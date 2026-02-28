@@ -50,13 +50,9 @@ jobs:
       - name: Vet
         run: go vet ./...
 
-      - name: Load test env (.env.test.sample)
+      - name: Load test env (.env.test.yaml.sample)
         shell: bash
-        run: |
-          while IFS='=' read -r key value; do
-            [[ -z "$key" || "$key" =~ ^# ]] && continue
-            echo "$key=$value" >> $GITHUB_ENV
-          done < .env.test.yaml.sample
+        run: cp .env.test.yaml.sample .env.test
 
       - name: Test
         run: go test -v -coverprofile=coverage.out ./...
