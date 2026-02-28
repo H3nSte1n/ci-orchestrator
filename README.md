@@ -1,10 +1,10 @@
 # Mini CI - Build Orchestrator (WIP)
 
-A minimal build orchestration system in Go: submit a build, schedule it, execute it on workers in isolated environments, stream logs, and persist results.
+A minimal build orchestration system in Go: submit a build, queue it, execute it on workers, persist logs, and track results.
 
 This repository explores practical problems in build infrastructure. Job lifecycle, concurrency control, isolation boundaries, caching opportunities, and operational visibility, through a small, end-to-end implementation.
 
-> **Status:** Work in progress. Core API + database model are implemented. Worker execution and streaming are under active development.
+> **Status:** Work in progress. Core API + database model are implemented. Worker executes commands and persists logs. Git clone/checkout and SSE log streaming are in progress.
 
 ---
 
@@ -21,7 +21,7 @@ This repository explores practical problems in build infrastructure. Job lifecyc
   Accepts build requests, persists job state, supports cancellation, and exposes build status.
 
 - **Worker**  
-  Claims queued builds, prepares a workspace (clone/checkout), runs builds (runner adapter), and reports logs + results.
+  Claims queued builds, creates a workspace, executes the build command (host runner for now), and persists logs + results.
 
 ---
 
@@ -39,13 +39,16 @@ This repository explores practical problems in build infrastructure. Job lifecyc
   - `builds` table (job state + locking fields)
   - `build_logs` table (persistent logs per build)
 
+- Worker: claim + execute (host runner) + complete builds
+- Persist logs (stdout/stderr) to build_logs
+
 ### In progress
-- Worker: claim + execute + report (git + runner)
-- Log streaming (SSE)
-- Container execution (Docker/Podman), resource limits
-- Artifacts (local -> S3)
+- Git clone + checkout ref (workspace from repo)
+- Client log streaming (SSE)
+- Container runner adapter (Docker/Podman) + resource limits
+- Artifact upload (local -> S3/MinIO)
 - Cache restore/save with content-addressed keys
-- Reliability: heartbeats + stuck-job recovery
+- Reliability: heartbeats + stuck-job recovery + retries
 
 ---
 
@@ -79,8 +82,9 @@ Services:
 > Development containers run with live reload (air).
 
 ## Roadmap
-- [ ] Worker: claim queued jobs safely and execute builds end-to-end
-- [ ] Persist + stream logs (SSE)
+- [x] Worker: claim queued jobs safely and execute commands (host runner)
+- [x] Persist logs to DB
+- [ ] Stream logs (SSE)
 - [ ] Container runner adapter (Docker/Podman) with resource limits
 - [ ] Artifact upload (local -> S3)
 - [ ] Cache restore/save (content-addressed keys)
