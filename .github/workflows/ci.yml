@@ -56,7 +56,7 @@ jobs:
           while IFS='=' read -r key value; do
             [[ -z "$key" || "$key" =~ ^# ]] && continue
             echo "$key=$value" >> $GITHUB_ENV
-          done < .env.test.sample
+          done < .env.test.yaml.sample
 
       - name: Test
         run: go test -v -coverprofile=coverage.out ./...
