@@ -7,7 +7,7 @@ A minimal build orchestration system in Go: submit a build, queue it, execute it
 
 This repository explores practical problems in build infrastructure. Job lifecycle, concurrency control, isolation boundaries, caching opportunities, and operational visibility, through a small, end-to-end implementation.
 
-> **Status:** Work in progress. Core API + database model are implemented. Worker executes commands and persists logs. Git clone/checkout and SSE log streaming are in progress.
+> **Status:** Work in progress. Core API + database model are implemented. Worker clones/checks out the requested repo ref, executes commands, and persists logs. SSE log streaming is in progress.
 
 ---
 
@@ -24,7 +24,7 @@ This repository explores practical problems in build infrastructure. Job lifecyc
   Accepts build requests, persists job state, supports cancellation, and exposes build status.
 
 - **Worker**  
-  Claims queued builds, creates a workspace, executes the build command (host runner for now), and persists logs + results.
+  Claims queued builds, clones + checks out the repo ref into a workspace, executes the build command (host runner for now), and persists logs + results.
 
 ---
 
@@ -44,9 +44,9 @@ This repository explores practical problems in build infrastructure. Job lifecyc
 
 - Worker: claim + execute (host runner) + complete builds
 - Persist logs (stdout/stderr) to build_logs
+- Git clone + checkout ref (workspace from repo)
 
 ### In progress
-- Git clone + checkout ref (workspace from repo)
 - Client log streaming (SSE)
 - Container runner adapter (Docker/Podman) + resource limits
 - Artifact upload (local -> S3/MinIO)
@@ -87,6 +87,7 @@ Services:
 ## Roadmap
 - [x] Worker: claim queued jobs safely and execute commands (host runner)
 - [x] Persist logs to DB
+- [x] Git clone + checkout ref (workspace from repo)
 - [ ] Stream logs (SSE)
 - [ ] Container runner adapter (Docker/Podman) with resource limits
 - [ ] Artifact upload (local -> S3)
