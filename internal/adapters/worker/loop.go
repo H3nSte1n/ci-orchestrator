@@ -18,14 +18,14 @@ type worker struct {
 	vcs             ports.VCS
 }
 
-func NewWorker(workerId string, buildService ports.BuildService, buildLogService ports.BuildLogService, interval time.Duration, runner ports.Runner, cvs ports.VCS) *worker {
+func NewWorker(workerId string, buildService ports.BuildService, buildLogService ports.BuildLogService, interval time.Duration, runner ports.Runner, vcs ports.VCS) *worker {
 	return &worker{
 		workerId:        workerId,
 		buildService:    buildService,
 		buildLogService: buildLogService,
 		interval:        interval,
 		runner:          runner,
-		vcs:             cvs,
+		vcs:             vcs,
 	}
 }
 
