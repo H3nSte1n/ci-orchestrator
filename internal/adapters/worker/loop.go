@@ -15,15 +15,17 @@ type worker struct {
 	buildLogService ports.BuildLogService
 	interval        time.Duration
 	runner          ports.Runner
+	vcs             ports.VCS
 }
 
-func NewWorker(workerId string, buildService ports.BuildService, buildLogService ports.BuildLogService, interval time.Duration, runner ports.Runner) *worker {
+func NewWorker(workerId string, buildService ports.BuildService, buildLogService ports.BuildLogService, interval time.Duration, runner ports.Runner, vcs ports.VCS) *worker {
 	return &worker{
 		workerId:        workerId,
 		buildService:    buildService,
 		buildLogService: buildLogService,
 		interval:        interval,
 		runner:          runner,
+		vcs:             vcs,
 	}
 }
 
@@ -63,6 +65,12 @@ func (w *worker) claimAndProcess(ctx context.Context) error {
 		return w.buildService.CompleteBuild(ctx, build.ID, -1, &finishedAt, runErr)
 	}
 	defer os.RemoveAll(workdir)
+
+	if err := w.vcs.CloneAndCheckout(ctx, build.RepoUrl, build.Ref, workdir); err != nil {
+		finishedAt := time.Now()
+		runErr := fmt.Errorf("checkout repo: %w", err)
+		return w.buildService.CompleteBuild(ctx, build.ID, -1, &finishedAt, runErr)
+	}
 
 	events, waitFn, err := w.runner.Start(ctx, workdir, build.Command, nil)
 
