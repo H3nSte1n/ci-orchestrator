@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -48,6 +49,22 @@ func (r *stubRunner) Start(_ context.Context, _, _ string, _ []string) (<-chan d
 	}
 
 	return ch, waitFn, nil
+}
+
+type stubRunnerWithError struct {
+	startErr error
+}
+
+func (r *stubRunnerWithError) Start(_ context.Context, _, _ string, _ []string) (<-chan domain.LogEvent, func() (int, error), error) {
+	return nil, nil, r.startErr
+}
+
+type stubVCS struct {
+	err error
+}
+
+func (s *stubVCS) CloneAndCheckout(ctx context.Context, repoURL, ref, destDir string) error {
+	return s.err
 }
 
 type mockBuildService struct {
@@ -104,8 +121,9 @@ func TestWorker_ClaimAndProcess_Success(t *testing.T) {
 	mockBuildLogService.On("AppendLog", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	runner := &stubRunner{exitCode: 0, runErr: nil, events: []domain.LogEvent{{Stream: domain.LogStdout, Line: "hello", Time: time.Now()}}}
+	vcs := &stubVCS{err: nil}
 
-	worker := NewWorker("worker-1", mockBuildService, mockBuildLogService, 100*time.Millisecond, runner)
+	worker := NewWorker("worker-1", mockBuildService, mockBuildLogService, 100*time.Millisecond, runner, vcs)
 	err := worker.claimAndProcess(context.Background())
 
 	assert.NoError(t, err)
@@ -123,8 +141,9 @@ func TestWorker_ClaimAndProcess_Error(t *testing.T) {
 
 	mockBuildLogService := new(mockBuildLogService)
 	runner := &stubRunner{exitCode: 0, runErr: nil}
+	vcs := &stubVCS{err: nil}
 
-	worker := NewWorker("worker-1", mockBuildService, mockBuildLogService, 100*time.Millisecond, runner)
+	worker := NewWorker("worker-1", mockBuildService, mockBuildLogService, 100*time.Millisecond, runner, vcs)
 	err := worker.claimAndProcess(context.Background())
 
 	assert.ErrorIs(t, err, expectedErr)
@@ -137,8 +156,9 @@ func TestWorker_ClaimAndProcess_NoBuilds(t *testing.T) {
 
 	mockBuildLogService := new(mockBuildLogService)
 	runner := &stubRunner{exitCode: 0, runErr: nil}
+	vcs := &stubVCS{err: nil}
 
-	worker := NewWorker("worker-1", mockBuildService, mockBuildLogService, 100*time.Millisecond, runner)
+	worker := NewWorker("worker-1", mockBuildService, mockBuildLogService, 100*time.Millisecond, runner, vcs)
 	err := worker.claimAndProcess(context.Background())
 
 	assert.NoError(t, err)
@@ -153,8 +173,9 @@ func TestWorker_ClaimAndProcess_CompleteBuildError(t *testing.T) {
 
 	mockBuildLogService := new(mockBuildLogService)
 	runner := &stubRunner{exitCode: 0, runErr: nil}
+	vcs := &stubVCS{err: nil}
 
-	worker := NewWorker("worker-1", mockBuildService, mockBuildLogService, 100*time.Millisecond, runner)
+	worker := NewWorker("worker-1", mockBuildService, mockBuildLogService, 100*time.Millisecond, runner, vcs)
 	err := worker.claimAndProcess(context.Background())
 
 	assert.ErrorIs(t, err, expectedErr)
@@ -167,11 +188,82 @@ func TestWorker_Run_ExitsOnContextCancel(t *testing.T) {
 	mockBuildService.On("ClaimNext", mock.Anything, mock.Anything).Return(nil, nil)
 	mockBuildLogService := new(mockBuildLogService)
 	runner := &stubRunner{exitCode: 0, runErr: nil}
+	vcs := &stubVCS{err: nil}
 
-	worker := NewWorker("worker-1", mockBuildService, mockBuildLogService, 100*time.Millisecond, runner)
+	worker := NewWorker("worker-1", mockBuildService, mockBuildLogService, 100*time.Millisecond, runner, vcs)
 	ctx, cancel := context.WithTimeout(context.Background(), 250*time.Millisecond)
 	defer cancel()
 
 	err := worker.Run(ctx)
 	assert.Error(t, err)
+}
+
+func TestWorker_ClaimAndProcess_RunnerStartError(t *testing.T) {
+	expectedErr := errors.New("start runner")
+	mockBuildService := new(mockBuildService)
+	mockBuildService.On("ClaimNext", mock.Anything, "worker-1").Return(buildTestData(), nil)
+	mockBuildService.On("CompleteBuild",
+		mock.Anything,
+		"ci-id",
+		-1,
+		mock.Anything,
+		mock.MatchedBy(func(err error) bool {
+			return err != nil && strings.Contains(err.Error(), "start runner")
+		}),
+	).Return(nil)
+
+	mockBuildLogService := new(mockBuildLogService)
+	runner := &stubRunnerWithError{startErr: expectedErr}
+	vcs := &stubVCS{err: nil}
+
+	worker := NewWorker("worker-1", mockBuildService, mockBuildLogService, 100*time.Millisecond, runner, vcs)
+	err := worker.claimAndProcess(context.Background())
+
+	assert.NoError(t, err)
+}
+
+func TestWorker_ClaimAndProcess_RunnerExitError(t *testing.T) {
+	expectedErr := errors.New("exec error")
+	mockBuildService := new(mockBuildService)
+	mockBuildService.On("ClaimNext", mock.Anything, "worker-1").Return(buildTestData(), nil)
+	mockBuildService.On("CompleteBuild", mock.Anything, "ci-id", 1, mock.Anything, mock.MatchedBy(func(err error) bool {
+		return err != nil
+	})).Return(nil)
+
+	mockBuildLogService := new(mockBuildLogService)
+	mockBuildLogService.On("AppendLog", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	runner := &stubRunner{exitCode: 1, runErr: expectedErr, events: []domain.LogEvent{}}
+	vcs := &stubVCS{err: nil}
+
+	worker := NewWorker("worker-1", mockBuildService, mockBuildLogService, 100*time.Millisecond, runner, vcs)
+	err := worker.claimAndProcess(context.Background())
+
+	assert.NoError(t, err)
+	mockBuildService.AssertCalled(t, "CompleteBuild", mock.Anything, "ci-id", 1, mock.Anything, expectedErr)
+}
+
+func TestWorker_ClaimAndProcess_VCSError(t *testing.T) {
+	expectedErr := errors.New("checkout failed")
+
+	mockBuildService := new(mockBuildService)
+	mockBuildService.On("ClaimNext", mock.Anything, "worker-1").Return(buildTestData(), nil)
+	mockBuildService.On("CompleteBuild",
+		mock.Anything,
+		"ci-id",
+		-1,
+		mock.Anything,
+		mock.MatchedBy(func(err error) bool {
+			return err != nil && strings.Contains(err.Error(), "checkout repo")
+		}),
+	).Return(nil)
+
+	mockBuildLogService := new(mockBuildLogService)
+	runner := &stubRunner{exitCode: 0, runErr: nil}
+	vcs := &stubVCS{err: expectedErr}
+
+	worker := NewWorker("worker-1", mockBuildService, mockBuildLogService, 100*time.Millisecond, runner, vcs)
+	err := worker.claimAndProcess(context.Background())
+
+	assert.NoError(t, err)
 }
